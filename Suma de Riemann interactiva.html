@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Suma de Riemann interactiva</title>
+<style>
+:root{--bg:#fafaf7;--fg:#1d1d1b;--muted:#5f5f58;--card:#ffffff;--bd:#dcdad2;--ac:#1f6feb;--rect:#1f6feb;--curve:#c2410c;--ok:#15803d;--bad:#b91c1c;--warn:#a16207}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17181a;--fg:#ecebe6;--muted:#a3a29a;--card:#202225;--bd:#383a3e;--ac:#6ea8fe;--rect:#6ea8fe;--curve:#fb923c;--ok:#4ade80;--bad:#f87171;--warn:#facc15;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#17181a;--fg:#ecebe6;--muted:#a3a29a;--card:#202225;--bd:#383a3e;--ac:#6ea8fe;--rect:#6ea8fe;--curve:#fb923c;--ok:#4ade80;--bad:#f87171;--warn:#facc15;color-scheme:dark}
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:920px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:1.6rem;margin:.2em 0 .4em}h2{font-size:1.1rem;margin:0 0 .5em}
+section{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;margin:16px 0}
+p{margin:.4em 0}.muted{color:var(--muted);font-size:.92rem}
+label{display:block;font-size:.9rem;color:var(--muted);margin-bottom:2px}
+input[type=text]{width:100%;padding:8px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit}
+input[type=range]{width:100%;accent-color:var(--ac)}
+button,select{font:inherit;padding:8px 12px;border-radius:8px;border:1px solid var(--bd);background:var(--bg);color:var(--fg);cursor:pointer}
+button.primary{background:var(--ac);color:#fff;border-color:var(--ac)}
+.row{display:grid;gap:12px;grid-template-columns:2fr 1fr 1fr}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.chips button{font-size:.85rem;padding:5px 10px}
+.msg{margin-top:8px;font-size:.92rem}.err{color:var(--bad)}.good{color:var(--ok)}.warn{color:var(--warn)}
+canvas{width:100%;height:340px;display:block;border:1px solid var(--bd);border-radius:8px;background:var(--bg)}
+.ctrl{display:grid;gap:12px;grid-template-columns:1fr 1fr;margin-bottom:12px}
+@media(max-width:640px){.row,.ctrl{grid-template-columns:1fr}}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin:12px 0}
+.stat{border:1px solid var(--bd);border-radius:8px;padding:8px 10px}.stat b{display:block;font-size:1.1rem;font-variant-numeric:tabular-nums}
+.scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:.9rem;font-variant-numeric:tabular-nums}
+th,td{border-bottom:1px solid var(--bd);padding:5px 8px;text-align:right}th:first-child,td:first-child{text-align:left}
+.q{border-left:4px solid var(--ac);padding:6px 12px;margin:12px 0}.q .opts{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.fb{font-size:.92rem;min-height:1.2em}
+</style>
+</head>
+<body>
+<main>
+<h1>Suma de Riemann: del área aproximada al área exacta</h1>
+
+<section>
+<h2>1. La idea</h2>
+<p>Para estimar el área bajo f(x) en [a, b], dividimos el intervalo en <b>n</b> subintervalos de ancho h = (b − a)/n y construimos un rectángulo sobre cada uno. Su altura es f evaluada en un <b>punto de muestra</b> del subintervalo. La suma de Riemann es S = Σ f(xᵢ*)·h. Si f es continua, al aumentar n la suma converge a la integral definida, pero la <b>rapidez</b> de esa convergencia depende del punto de muestra elegido.</p>
+</section>
+
+<section>
+<h2>2. Elige tu función</h2>
+<div class="row">
+ <div><label for="fx">f(x) =</label><input id="fx" type="text" value="x^2" autocomplete="off" spellcheck="false"></div>
+ <div><label for="ia">a (inicio)</label><input id="ia" type="text" value="0" autocomplete="off"></div>
+ <div><label for="ib">b (fin)</label><input id="ib" type="text" value="2" autocomplete="off"></div>
+</div>
+<p class="muted" style="margin-top:8px">Formato: potencias con <code>^</code> (<code>x^3</code>), producto con <code>*</code> o implícito (<code>2x</code>), funciones con paréntesis: <code>sin, cos, tan, exp, ln</code> (natural), <code>log</code> (base 10), <code>sqrt, abs, atan</code>. Constantes: <code>pi</code>, <code>e</code>. Los extremos admiten <code>pi</code>, por ejemplo <code>2*pi</code>. La función debe estar definida y ser finita en todo [a, b].</p>
+<button class="primary" id="go" style="margin-top:8px">Cargar función</button>
+<div class="chips" id="presets"></div>
+<div class="msg" id="loadmsg"></div>
+</section>
+
+<section>
+<h2>3. Predice antes de manipular</h2>
+<div id="qpre"></div>
+</section>
+
+<section id="explorer" hidden>
+<h2>4. Explora</h2>
+<div class="ctrl">
+ <div><label for="n">Número de rectángulos: <b id="nval">10</b></label><input id="n" type="range" min="2" max="200" step="1" value="10"></div>
+ <div><label for="m">Punto de muestra</label>
+  <select id="m">
+   <option value="left">Extremo izquierdo</option><option value="right">Extremo derecho</option>
+   <option value="mid">Punto medio</option><option value="min">Mínimo (suma inferior de Darboux)</option><option value="max">Máximo (suma superior de Darboux)</option>
+  </select></div>
+</div>
+<canvas id="cv" role="img" aria-label="Gráfica de la función y los rectángulos de la partición"></canvas>
+<p class="muted">Curva en naranja; rectángulos en azul. El punto marca dónde se evalúa la altura de cada rectángulo (se oculta si hay muchos).</p>
+<div class="stats">
+ <div class="stat"><span class="muted">Suma de Riemann Sₙ</span><b id="sS">–</b></div>
+ <div class="stat"><span class="muted">Integral (referencia)</span><b id="sI">–</b></div>
+ <div class="stat"><span class="muted">Error Sₙ − I</span><b id="sE">–</b></div>
+ <div class="stat"><span class="muted">Error relativo</span><b id="sR">–</b></div>
+</div>
+<div class="msg" id="notes"></div>
+
+<h2 style="margin-top:16px">Evolución del error con n</h2>
+<p class="muted">Calculado con el punto de muestra seleccionado. Si el cociente |E(n/2)| / |E(n)| ≈ 2, el método es de orden 1 (el error se reduce a la mitad al duplicar n); si ≈ 4, es de orden 2.</p>
+<div class="scroll"><table id="tbl"></table></div>
+</section>
+
+<section id="post" hidden>
+<h2>5. Verifica lo que observaste</h2>
+<div id="qpost"></div>
+</section>
+
+<section>
+<h2>6. Qué deberías haber observado</h2>
+<ul>
+<li>Con f creciente, la suma izquierda subestima y la derecha sobrestima; con f decreciente ocurre lo contrario. Siempre: suma inferior ≤ integral ≤ suma superior.</li>
+<li>Izquierda y derecha tienen error de orden 1 (≈ 1/n); el punto medio es de orden 2 (≈ 1/n²) en funciones suaves, por eso suele ser mucho más preciso con el mismo n.</li>
+<li>La convergencia es más lenta cuando f varía bruscamente, oscila rápido (prueba sin(10x) con n pequeño) o tiene derivada muy grande en un extremo (prueba sqrt(x) en [0, 1]).</li>
+<li>El punto de muestra importa más cuando n es pequeño; para n grande todos los métodos se acercan a la misma integral.</li>
+</ul>
+<p class="muted">Nota docente: la “integral de referencia” se calcula numéricamente (Simpson con 20 000 subintervalos), no de forma simbólica; su error es despreciable frente a los de las sumas mostradas.</p>
+</section>
+<footer class="muted" style="border-top:1px solid var(--bd);margin-top:24px;padding-top:14px">
+<p>Recurso elaborado por <b>Claude Sonnet 5.5</b> (medio). La idea y la guía del recurso fueron elaboradas por <b>Kenyi Calderón</b>.</p>
+<p>Recurso educativo de libre acceso.</p>
+</footer>
+</main>
+
+<script>
+/* ================== CONFIGURACIÓN PARA EL DOCENTE ================== */
+// Ejemplos rápidos: [etiqueta, f(x), a, b]
+const PRESETS=[["x²","x^2","0","2"],["sin(x)","sin(x)","0","pi"],["1/x","1/x","1","5"],["√x (lenta)","sqrt(x)","0","1"],["sin(10x)","sin(10*x)","0","pi"],["e^(−x²)","exp(-x^2)","-2","2"],["x³ − 3x","x^3-3*x","-2","2"]];
+// Preguntas guiadas. ok = índice de la opción correcta. zona: "pre" (antes de explorar) o "post" (después).
+const QS=[
+{z:"pre",q:"Si f es creciente en [a, b], la suma con extremo izquierdo, ¿subestimará o sobrestimará el área?",o:["Subestimará","Sobrestimará","Dará exactamente el área"],ok:0,fb:"En cada subintervalo el extremo izquierdo es donde f toma su menor valor, así que cada rectángulo queda por debajo de la curva. Compruébalo con x^2 en [0, 2]."},
+{z:"pre",q:"Si f es decreciente, ¿qué ocurre con la suma con extremo derecho?",o:["Subestima","Sobrestima","Depende de n"],ok:0,fb:"Si f decrece, el extremo derecho es el menor valor del subintervalo, así que subestima. Pruébalo con 1/x en [1, 5]."},
+{z:"post",q:"En una función suave, si duplicas n en la suma izquierda, el error aproximadamente…",o:["Se reduce a la mitad","Se reduce a la cuarta parte","No cambia"],ok:0,fb:"Es un método de orden 1: error ∝ 1/n. Mira la columna del cociente en la tabla (≈ 2)."},
+{z:"post",q:"Con el mismo n, el punto medio suele dar un error…",o:["Mucho menor que izquierda/derecha","Igual","Mayor"],ok:0,fb:"El punto medio es de orden 2 (error ∝ 1/n²): al duplicar n el error se divide por ≈ 4, y los errores por exceso y por defecto dentro de cada rectángulo se compensan."},
+{z:"post",q:"¿Es siempre cierto que suma inferior ≤ ∫f ≤ suma superior (Darboux)?",o:["Sí, para f continua","Solo si f es creciente","No, depende de n"],ok:0,fb:"Sí: en cada subintervalo, min f ≤ f ≤ max f, así que integrar da las desigualdades para cualquier n. Cámbiate a mínimo y máximo para verlo."}
+];
+const N_REF=20000;      // subintervalos (par) de Simpson para la integral de referencia
+const N_TABLA=[2,4,8,16,32,64,128,256]; // valores de n para la tabla de errores
+const N_DARBOUX=16;     // puntos de muestreo por subintervalo para aproximar mín/máx
+
+/* ================== ANALIZADOR DE EXPRESIONES (sin eval) ================== */
+const FUN={sin:Math.sin,cos:Math.cos,tan:Math.tan,asin:Math.asin,acos:Math.acos,atan:Math.atan,exp:Math.exp,ln:Math.log,log:Math.log10,sqrt:Math.sqrt,cbrt:Math.cbrt,abs:Math.abs,sinh:Math.sinh,cosh:Math.cosh,tanh:Math.tanh};
+const CONST=new Set(["x","pi","e"]);
+function tokenize(s){const t=[],re=/(\d+\.?\d*(?:e[+-]?\d+)?|\.\d+)|([a-z]+)|([-+*\/^(),])|(.)/g;let m;
+ while((m=re.exec(s))){if(m[4])throw new Error("Carácter no permitido: “"+m[4]+"”.");
+  if(m[1])t.push({t:"n",v:parseFloat(m[1])});else if(m[2])t.push({t:"i",v:m[2]});else t.push({t:"o",v:m[3]});}
+ const out=[];for(const k of t){const p=out[out.length-1];
+  if(p&&(p.t==="n"||(p.t==="o"&&p.v===")")||(p.t==="i"&&CONST.has(p.v)))&&(k.t==="n"||k.t==="i"||(k.t==="o"&&k.v==="(")))out.push({t:"o",v:"*"});out.push(k);}
+ return out;}
+function parse(T){let i=0;const isO=v=>T[i]&&T[i].t==="o"&&T[i].v===v;
+ function expr(){let l=term();while(isO("+")||isO("-")){const op=T[i++].v,r=term(),L=l;l=op==="+"?x=>L(x)+r(x):x=>L(x)-r(x);}return l;}
+ function term(){let l=unary();while(isO("*")||isO("/")){const op=T[i++].v,r=unary(),L=l;l=op==="*"?x=>L(x)*r(x):x=>L(x)/r(x);}return l;}
+ function unary(){if(isO("-")){i++;const u=unary();return x=>-u(x);}if(isO("+")){i++;return unary();}return power();}
+ function power(){const base=atom();if(isO("^")){i++;const e=unary();return x=>Math.pow(base(x),e(x));}return base;}
+ function atom(){const k=T[i++];if(!k)throw new Error("La expresión está incompleta.");
+  if(k.t==="n")return()=>k.v;
+  if(k.t==="o"&&k.v==="("){const e=expr();if(!isO(")"))throw new Error("Falta cerrar un paréntesis.");i++;return e;}
+  if(k.t==="i"){if(k.v==="x")return x=>x;if(k.v==="pi")return()=>Math.PI;if(k.v==="e")return()=>Math.E;
+   if(FUN[k.v]){if(!isO("("))throw new Error("Escribe "+k.v+"( … ) con paréntesis.");i++;const a=expr();if(!isO(")"))throw new Error("Falta cerrar un paréntesis.");i++;const fn=FUN[k.v];return x=>fn(a(x));}
+   throw new Error("No reconozco “"+k.v+"”.");}
+  throw new Error("Símbolo inesperado: “"+k.v+"”.");}
+ const r=expr();if(i<T.length)throw new Error("Sobra algo al final de la expresión (¿falta un operador?).");return r;}
+const compile=s=>{s=s.toLowerCase().replace(/\s+/g,"").replace(/π/g,"pi").replace(/\*\*/g,"^");if(!s)throw new Error("Campo vacío.");return parse(tokenize(s));};
+
+/* ================== ESTADO Y CÁLCULO ================== */
+const $=id=>document.getElementById(id);
+let f=null,A=0,B=1,I=0;
+const fmt=v=>!isFinite(v)?"–":(Math.abs(v)>=1e6||(v!==0&&Math.abs(v)<1e-4))?v.toExponential(3):(+v.toFixed(6)).toString();
+function simpson(){const N=N_REF,h=(B-A)/N;let s=f(A)+f(B);for(let i=1;i<N;i++)s+=f(A+i*h)*(i%2?4:2);return s*h/3;}
+// Altura del rectángulo i según el método
+function height(i,n,m){const h=(B-A)/n,xl=A+i*h,xr=xl+h;
+ if(m==="left")return[f(xl),xl];if(m==="right")return[f(xr),xr];if(m==="mid"){const xm=(xl+xr)/2;return[f(xm),xm];}
+ let best=f(xl),bx=xl;for(let k=1;k<=N_DARBOUX;k++){const x=xl+h*k/N_DARBOUX,y=f(x);if(m==="min"?y<best:y>best){best=y;bx=x;}}return[best,bx];}
+function riemann(n,m){let s=0;for(let i=0;i<n;i++)s+=height(i,n,m)[0];return s*(B-A)/n;}
+
+/* ================== CARGA Y VALIDACIÓN ================== */
+function load(){const msg=$("loadmsg");msg.className="msg";
+ try{const g=compile($("fx").value);const a=compile($("ia").value)(0),b=compile($("ib").value)(0);
+  if(!isFinite(a)||!isFinite(b))throw new Error("Los extremos deben ser números.");
+  if(a>=b)throw new Error("Se requiere a < b.");
+  for(let k=0;k<=400;k++){const x=a+(b-a)*k/400,y=g(x);if(!isFinite(y))throw new Error("f no está definida o no es finita en x ≈ "+fmt(x)+". Elige un intervalo donde f sea continua (ojo con 1/x en 0, ln(x) en x ≤ 0 o sqrt de negativos).");}
+  f=g;A=a;B=b;I=simpson();
+  msg.classList.add("good");msg.textContent="Función cargada correctamente en ["+fmt(A)+", "+fmt(B)+"].";
+  $("explorer").hidden=false;$("post").hidden=false;update();
+ }catch(e){msg.classList.add("err");msg.textContent="⚠ "+e.message;}}
+
+/* ================== DIBUJO ================== */
+function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();}
+function draw(n,m){const cv=$("cv"),dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;cv.width=W*dpr;cv.height=H*dpr;
+ const c=cv.getContext("2d");c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,W,H);
+ const hs=[];let ymin=0,ymax=0;for(let k=0;k<=300;k++){const y=f(A+(B-A)*k/300);ymin=Math.min(ymin,y);ymax=Math.max(ymax,y);}
+ for(let i=0;i<n;i++){const[y,x]=height(i,n,m);hs.push([y,x]);ymin=Math.min(ymin,y);ymax=Math.max(ymax,y);}
+ if(ymax===ymin){ymax+=1;ymin-=1;}const pad=(ymax-ymin)*.08;ymin-=pad;ymax+=pad;
+ const L=46,R=12,T=12,Bt=26,sx=x=>L+(x-A)/(B-A)*(W-L-R),sy=y=>T+(ymax-y)/(ymax-ymin)*(H-T-Bt);
+ const fg=css("--muted"),bd=css("--bd");c.font="11px system-ui";c.fillStyle=fg;c.strokeStyle=bd;c.lineWidth=1;
+ for(let k=0;k<=5;k++){const x=A+(B-A)*k/5;c.beginPath();c.moveTo(sx(x),T);c.lineTo(sx(x),H-Bt);c.stroke();c.textAlign="center";c.fillText(fmt(+x.toPrecision(3)),sx(x),H-8);
+  const y=ymin+(ymax-ymin)*k/5;c.beginPath();c.moveTo(L,sy(y));c.lineTo(W-R,sy(y));c.stroke();c.textAlign="right";c.fillText(fmt(+y.toPrecision(3)),L-5,sy(y)+4);}
+ c.strokeStyle=fg;c.lineWidth=1.5;c.beginPath();c.moveTo(L,sy(0));c.lineTo(W-R,sy(0));c.stroke();
+ const h=(B-A)/n,rc=css("--rect");
+ for(let i=0;i<n;i++){const x0=sx(A+i*h),x1=sx(A+(i+1)*h),yy=sy(hs[i][0]),y0=sy(0);
+  c.globalAlpha=.28;c.fillStyle=rc;c.fillRect(x0,Math.min(y0,yy),x1-x0,Math.abs(yy-y0));c.globalAlpha=1;
+  if(n<=100){c.strokeStyle=rc;c.lineWidth=n>50?.6:1.2;c.strokeRect(x0,Math.min(y0,yy),x1-x0,Math.abs(yy-y0));}
+  if(n<=40){c.fillStyle=rc;c.beginPath();c.arc(sx(hs[i][1]),sy(f(hs[i][1])),3.2,0,7);c.fill();}}
+ c.strokeStyle=css("--curve");c.lineWidth=2.2;c.beginPath();
+ for(let k=0;k<=400;k++){const x=A+(B-A)*k/400,px=sx(x),py=sy(f(x));k?c.lineTo(px,py):c.moveTo(px,py);}c.stroke();}
+
+/* ================== ACTUALIZACIÓN ================== */
+function update(){if(!f)return;const n=+$("n").value,m=$("m").value;$("nval").textContent=n;
+ draw(n,m);const S=riemann(n,m),E=S-I;
+ $("sS").textContent=fmt(S);$("sI").textContent=fmt(I);
+ $("sE").textContent=(E>=0?"+":"")+fmt(E)+(Math.abs(E)<1e-12?"":E>0?"  (sobrestima)":"  (subestima)");
+ $("sR").textContent=Math.abs(I)>1e-12?fmt(Math.abs(E/I)*100)+" %":"–";
+ // Avisos didácticos
+ const notes=[],sc=Math.max(Math.abs(I),1e-9),Sl=riemann(n,"left"),Sr=riemann(n,"right");
+ if(Math.abs(Sl-Sr)>0.05*sc)notes.push(["warn","Con n = "+n+", la suma izquierda ("+fmt(Sl)+") y la derecha ("+fmt(Sr)+") difieren más de 5 % de la integral: aquí el punto de muestra cambia notoriamente el resultado. Aumenta n y observa cómo se acercan."]);
+ if(Math.abs(riemann(200,m)-I)>0.005*sc)notes.push(["warn","Incluso con n = 200 este método queda a más de 0,5 % de la integral: la convergencia es lenta para esta función (¿variación brusca, oscilación o derivada muy grande en un extremo?). Prueba el punto medio."]);
+ if(m==="min"||m==="max"){const lo=riemann(n,"min"),up=riemann(n,"max");notes.push(["good","Darboux: suma inferior "+fmt(lo)+" ≤ I ≈ "+fmt(I)+" ≤ suma superior "+fmt(up)+" (mín/máx aproximados muestreando cada subintervalo)."]);}
+ $("notes").innerHTML=notes.map(x=>'<p class="'+x[0]+'">'+x[1]+"</p>").join("");
+ // Tabla de error
+ let rows="<tr><th>n</th><th>Sₙ</th><th>|Error|</th><th>|E(n/2)| / |E(n)|</th></tr>",prev=null;
+ for(const k of N_TABLA){const s=riemann(k,m),e=Math.abs(s-I);rows+="<tr><td>"+k+"</td><td>"+fmt(s)+"</td><td>"+fmt(e)+"</td><td>"+(prev!==null&&e>1e-13?fmt(prev/e):"–")+"</td></tr>";prev=e;}
+ $("tbl").innerHTML=rows;}
+
+/* ================== PREGUNTAS GUIADAS ================== */
+function renderQs(){for(const z of["pre","post"]){const box=$("q"+z);QS.filter(q=>q.z===z).forEach(q=>{
+ const d=document.createElement("div");d.className="q";d.innerHTML="<p><b>"+q.q+"</b></p>";
+ const o=document.createElement("div");o.className="opts";const fb=document.createElement("div");fb.className="fb";
+ q.o.forEach((t,i)=>{const b=document.createElement("button");b.textContent=t;b.onclick=()=>{const ok=i===q.ok;fb.className="fb "+(ok?"good":"err");fb.textContent=(ok?"✔ Correcto. ":"✘ No exactamente. ")+q.fb;};o.appendChild(b);});
+ d.append(o,fb);box.appendChild(d);});}}
+
+/* ================== INICIO ================== */
+PRESETS.forEach(p=>{const b=document.createElement("button");b.textContent=p[0];b.onclick=()=>{$("fx").value=p[1];$("ia").value=p[2];$("ib").value=p[3];load();};$("presets").appendChild(b);});
+$("go").onclick=load;["fx","ia","ib"].forEach(id=>$(id).addEventListener("keydown",e=>{if(e.key==="Enter")load();}));
+$("n").oninput=update;$("m").onchange=update;window.addEventListener("resize",update);
+matchMedia("(prefers-color-scheme:dark)").addEventListener("change",update);
+renderQs();load();
+</script>
+</body>
+</html>
